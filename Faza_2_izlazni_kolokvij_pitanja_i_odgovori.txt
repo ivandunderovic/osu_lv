@@ -1,0 +1,467 @@
+# FAZA 2 - izlazni kolokvij iz Osnova strojnog učenja
+
+**Najlogičnija pitanja i gotovi odgovori po datasetovima**
+
+> Fokus je na interpretaciji rezultata, grafova i metrika. Uči logiku: **regresija = brojčana vrijednost**, **klasifikacija = klasa/kategorija**.
+
+## 1. Brzi pregled
+
+| Dataset | Tip problema | Izlazna veličina | Metrike | Skaliranje |
+|---|---|---|---|---|
+| California Housing | regresija | cijena/vrijednost nekretnine | RMSE, MAE, MAPE, R2 | StandardScaler |
+| Diabetes | regresija | progresija bolesti | RMSE, MAE, MAPE, R2 | već skaliran; po potrebi StandardScaler |
+| Linnerud | multi-output regresija | Weight, Waist, Pulse | RMSE, MAE, R2 po izlazu ili prosjek | StandardScaler |
+| Breast Cancer Wisconsin | binarna klasifikacija | malignant/benign | accuracy, precision, recall, matrica zabune | StandardScaler |
+| Fashion MNIST | višeklasna klasifikacija slika | 10 klasa odjeće | accuracy, matrica zabune, precision/recall po klasama | /255 i reshape 28x28x1 |
+| Iris | višeklasna klasifikacija | 3 vrste irisa | accuracy, precision, recall, matrica zabune | preporučljiv StandardScaler |
+| Digits | višeklasna klasifikacija slika | znamenke 0-9 | accuracy, matrica zabune | /16 ili StandardScaler |
+| Wine | višeklasna klasifikacija | 3 klase vina | accuracy, precision, recall, matrica zabune | StandardScaler |
+
+## 2. Univerzalna pitanja koja se mogu pojaviti
+
+### Kako prepoznati je li problem regresija ili klasifikacija?
+
+Ako je izlazna veličina kontinuirana brojčana vrijednost, riječ je o regresiji. Ako je izlazna veličina kategorija ili klasa, riječ je o klasifikaciji. Primjeri regresije su predviđanje cijene nekretnine ili progresije bolesti, a primjeri klasifikacije su prepoznavanje vrste cvijeta, znamenke, odjevnog predmeta ili benignog/malignog uzorka.
+
+### Zašto je bitno skalirati podatke?
+
+Skaliranje je važno zato što ulazne značajke mogu biti izražene na različitim rasponima. Ako se podaci ne skaliraju, značajke s većim numeričkim vrijednostima mogu neopravdano više utjecati na model. Skaliranje je posebno važno kod algoritama koji ovise o udaljenostima ili optimizaciji, kao što su KNN, SVM, logistička regresija i neuronske mreže.
+
+### Zašto scaler treba fitati samo na trening skupu?
+
+Scaler se prilagođava samo trening skupu kako ne bi došlo do curenja informacija iz testnog skupa u proces treniranja. Nakon što se scaler nauči na trening podacima, isti scaler primjenjuje se na trening, validacijske i testne podatke.
+
+### Što je train/test split?
+
+Train/test split je podjela podataka na skup za učenje i skup za testiranje. Trening skup koristi se za učenje modela, a testni skup za procjenu rada modela na podacima koje nije vidio tijekom treniranja.
+
+### Što je validation_split?
+
+Validation_split odvaja dio trening podataka za validaciju tijekom treniranja. Ti podaci se ne koriste izravno za ažuriranje težina modela, nego za praćenje generalizacije i uočavanje prenaučenosti.
+
+### Što je epoha, a što batch_size?
+
+Epoha je jedan prolazak modela kroz cijeli trening skup. Batch_size je broj uzoraka koji se koristi u jednom koraku ažuriranja težina. Manji batch češće ažurira težine i može dati nestabilnije krivulje, dok veći batch daje glađe krivulje, ali može drugačije generalizirati.
+
+### Što se događa promjenom veličine batch-a?
+
+Promjena batch-a mijenja tijek učenja. Manji batch često daje šumovitije krivulje jer se težine ažuriraju češće. Veći batch daje stabilnije i glađe krivulje, ali bolji je onaj model koji ima bolji validacijski rezultat: kod regresije niži validation loss/MAE, a kod klasifikacije niži validation loss i viši validation accuracy.
+
+### Zašto se model sprema na HDD?
+
+Model se sprema na tvrdi disk kako bi se mogao ponovno koristiti bez ponovnog treniranja. Spremljeni model može se učitati za predikciju, vrednovanje na testnom skupu ili daljnji rad. Time se štedi vrijeme i omogućuje ponovljivost rezultata.
+
+### Gdje je najbolje dodati Dropout sloj?
+
+Dropout se najčešće dodaje nakon skrivenih Dense slojeva ili nakon konvolucijsko/pooling blokova kod CNN-a, a prije izlaznog sloja. Ne dodaje se na izlazni sloj jer izlazni sloj mora dati konačnu predikciju. Dropout smanjuje prenaučenost jer tijekom treniranja nasumično isključuje dio neurona.
+
+### Kako prepoznati overfitting?
+
+Overfitting se pojavljuje kada model sve bolje radi na trening skupu, ali se validacijski rezultat pogoršava. Kod regresije se vidi tako da training loss/MAE pada, a validation loss/MAE raste ili stagnira. Kod klasifikacije se vidi tako da training accuracy raste, a validation accuracy stagnira ili pada, odnosno validation loss raste.
+
+### Kako analizirati korelacijsku matricu?
+
+Korelacijska matrica pokazuje povezanost među značajkama. Vrijednosti blizu 1 označavaju jaku pozitivnu korelaciju, vrijednosti blizu -1 jaku negativnu korelaciju, a vrijednosti blizu 0 slabu linearnu povezanost. Ako su značajke jako korelirane, nose sličnu informaciju.
+
+### Kako analizirati graf stvarnih i predviđenih vrijednosti kod regresije?
+
+Pravac y = x predstavlja idealnu ovisnost. Što su točke bliže tom pravcu, model bolje predviđa. Točke iznad pravca znače da model precjenjuje vrijednost, a točke ispod pravca znače da podcjenjuje vrijednost. Ako se točke više udaljavaju u jednom dijelu grafa, model u tom rasponu slabije predviđa.
+
+### Kako analizirati matricu zabune kod klasifikacije?
+
+Matrica zabune prikazuje točne i pogrešne klasifikacije po klasama. Vrijednosti na dijagonali su točne klasifikacije, a vrijednosti izvan dijagonale su pogreške. Ako su najveće vrijednosti na dijagonali, model dobro klasificira podatke.
+
+## 3. Metrike - odgovori koje možeš koristiti
+
+### RMSE
+
+RMSE je korijen srednje kvadratne pogreške. Pokazuje prosječnu veličinu pogreške modela, pri čemu veće pogreške kažnjava jače jer se pogreške kvadriraju. Što je RMSE manji, model je bolji.
+
+### MAE
+
+MAE je srednja apsolutna pogreška. Pokazuje koliko model u prosjeku griješi u stvarnim jedinicama izlazne veličine. Što je MAE manji, model je bolji.
+
+### MAPE
+
+MAPE je srednja apsolutna postotna pogreška. Pokazuje prosječnu pogrešku izraženu u postotku. Što je MAPE manji, model je bolji. Treba biti oprezan ako stvarne vrijednosti mogu biti nula ili vrlo blizu nule.
+
+### R2
+
+R2 pokazuje koliki dio varijance izlazne veličine model objašnjava pomoću ulaznih značajki. Vrijednost bliža 1 znači bolji model. Vrijednost oko 0 znači da model nije bolji od predviđanja prosjeka, a negativna vrijednost znači da je model lošiji od predviđanja prosječne vrijednosti.
+
+### Accuracy
+
+Accuracy je udio ukupno točno klasificiranih primjera u odnosu na sve primjere.
+
+### Precision
+
+Precision pokazuje koliko je od primjera koje je model označio kao pozitivne zaista pozitivno.
+
+### Recall
+
+Recall pokazuje koliko je stvarnih pozitivnih primjera model uspio prepoznati. Kod medicinskih problema često je jako važan jer propuštanje pozitivnih slučajeva može biti opasno.
+
+### F1-score
+
+F1-score je harmonijska sredina precisiona i recalla. Koristan je kada želimo jednu mjeru koja uzima u obzir i lažno pozitivne i lažno negativne pogreške.
+
+## 4. Diabetes
+
+**Tip:** regresija  
+**Podaci:** 442 uzorka, 10 značajki  
+**Izlaz:** kvantitativna progresija bolesti  
+**NN:** Dense 32, Dense 16, izlaz 1; loss = mse, metrika = mae
+
+### Ulazne i izlazne veličine?
+
+Ulazne veličine su age, sex, bmi, bp i šest serumskih mjerenja s1-s6. Izlazna veličina je kvantitativna progresija bolesti godinu dana nakon početnih mjerenja.
+
+### Zašto regresija?
+
+Jer je izlaz kontinuirana brojčana vrijednost, a ne klasa. To potvrđuju i metrike RMSE, MAE, MAPE i R2 te neuronska mreža s jednim izlaznim neuronom.
+
+### Korelacijska matrica?
+
+Pokazuje povezanost između 10 značajki. Posebno se promatra korelacija s progresijom bolesti. Često je bmi najviše povezan s izlazom, što znači da indeks tjelesne mase ima izraženiju linearnu povezanost s progresijom bolesti.
+
+### Scatter graf značajke i progresije?
+
+Ako je prikazan bmi, veći BMI uglavnom prati veću progresiju bolesti. Raspršenost znači da veza nije savršena, ali trend postoji.
+
+### Jesu li podaci skalirani?
+
+Da, Diabetes podaci u scikit-learnu već su centrirani i skalirani. Dodatno skaliranje može se provesti ako zadatak traži ili radi stabilnije neuronske mreže.
+
+### Interpretacija linearne regresije?
+
+RMSE, MAE i MAPE pokazuju pogrešku linearne regresije, a R2 koliko dobro model objašnjava progresiju bolesti. Manje pogreške i veći R2 znače bolji model.
+
+### Interpretacija neuronske mreže i usporedba?
+
+Neuronska mreža se uspoređuje s linearnom regresijom istim metrikama. Bolja je ako ima niži RMSE, MAE i MAPE te viši R2. Ako nema bolje rezultate, složeniji model nije donio poboljšanje ili nije dobro generalizirao.
+
+### Graf stvarno-predviđeno?
+
+Kod regresije nema granice odluke. Promatra se pravac y = x. Točke blizu pravca su dobre predikcije, iznad pravca znači precjenjivanje, a ispod pravca podcjenjivanje.
+
+### Priprema za neuronsku mrežu?
+
+Odvoje se X i y, napravi se train/test split, skalira se X po potrebi, a mreža se trenira na pripremljenim podacima. Izlazni sloj ima 1 neuron jer predviđa jednu kontinuiranu vrijednost.
+
+### Dropout?
+
+Dropout se može dodati nakon Dense(32) ili Dense(16), prije izlaznog sloja. Ne dodaje se na izlazni sloj.
+
+### TensorBoard i overfitting?
+
+Prate se loss i mae. Ako training loss pada, a validation loss raste, postoji overfitting. Ako su krivulje treninga i validacije slične, nema izražene prenaučenosti.
+
+## 5. California Housing
+
+**Tip:** regresija  
+**Podaci:** 20 640 uzoraka, 8 značajki  
+**Izlaz:** MedHouseVal - vrijednost nekretnine  
+**Metrike:** RMSE, MAE, MAPE, R2
+
+### Ulazne i izlazne veličine?
+
+Ulazne veličine su MedInc, HouseAge, AveRooms, AveBedrms, Population, AveOccup, Latitude i Longitude. Izlazna veličina je MedHouseVal, odnosno vrijednost nekretnine.
+
+### Zašto regresija?
+
+Predviđa se kontinuirana brojčana vrijednost - cijena/vrijednost nekretnine. Model ne predviđa klasu, nego broj.
+
+### Koji algoritmi imaju smisla?
+
+Linearna regresija i neuronska mreža za regresiju imaju najviše smisla. Mogu se koristiti i SVR ili KNN regressor. Logistička regresija nije prikladna jer je za klasifikaciju, a K-means je nenadzirani algoritam za grupiranje.
+
+### Treba li skalirati podatke?
+
+Da, jer značajke nisu na istoj skali. Primjerice, Population može imati mnogo veće vrijednosti od Latitude, Longitude ili AveRooms. StandardScaler je prikladan, osobito za neuronske mreže, KNN i SVM.
+
+### Korelacijska matrica?
+
+Korelacijska matrica pokazuje povezanost među značajkama i povezanost značajki s cijenom. Jača korelacija s cijenom znači da značajka može biti važnija za predviđanje.
+
+### Scatter grafovi?
+
+Ako se s porastom neke značajke povećava cijena, riječ je o pozitivnoj povezanosti. Ako cijena pada porastom značajke, riječ je o negativnoj povezanosti. Velika raspršenost znači slabiju linearnu povezanost.
+
+### Regresijske metrike?
+
+RMSE, MAE i MAPE mjere pogrešku predikcije cijene, a R2 pokazuje koliko model objašnjava varijabilnost cijena. Manje pogreške i veći R2 znače bolji model.
+
+### Graf stvarno-predviđeno?
+
+Točke bliže pravcu y = x znače bolje predikcije. Ako model više griješi kod visokih cijena, točke se u tom dijelu jače odmiču od pravca.
+
+### Priprema za neuronsku mrežu?
+
+Napravi se train/test split, X se standardizira, izlazni sloj ima 1 neuron, a koriste se loss = mse i metrika = mae.
+
+### Overfitting?
+
+Ako validation loss raste dok training loss pada, model je prenaučen. Ako se trening i validacijske krivulje kreću slično, nema izraženog overfittinga.
+
+## 6. Linnerud
+
+**Tip:** multi-output regresija  
+**Podaci:** 20 uzoraka, 3 ulazne značajke  
+**Izlaz:** Weight, Waist, Pulse  
+**Zamka:** neuronska mreža treba imati 3 izlazna neurona
+
+### Ulazne i izlazne veličine?
+
+Ulazne veličine su vježbe: Chins, Situps i Jumps. Izlazne veličine su fiziološke vrijednosti: Weight, Waist i Pulse.
+
+### Zašto multi-output regresija?
+
+Radi se o regresiji jer su izlazne veličine brojčane, a multi-output je zato što se istovremeno predviđaju tri izlazne vrijednosti.
+
+### Koji algoritmi su prikladni?
+
+Prikladna je linearna regresija koja podržava više izlaza, multi-output regresijski modeli ili neuronska mreža s tri izlazna neurona. Klasični klasifikacijski modeli nisu prikladni jer se ne predviđa klasa.
+
+### Treba li skalirati podatke?
+
+Da, preporučljivo je skalirati ulazne značajke jer Chins, Situps i Jumps nisu nužno na istoj skali. Kod neuronske mreže može se razmotriti i skaliranje izlaza.
+
+### Koje metrike koristiti?
+
+Koriste se regresijske metrike, primjerice RMSE, MAE i R2. Mogu se računati za svaki izlaz posebno ili kao prosjek preko sva tri izlaza.
+
+### Izlazni sloj neuronske mreže?
+
+Izlazni sloj treba imati 3 neurona jer model predviđa tri vrijednosti: Weight, Waist i Pulse. Ne koristi se softmax jer nije klasifikacija.
+
+### Graf stvarno-predviđeno?
+
+Može se gledati zasebno za svaki izlaz. Točke bliže pravcu y = x znače bolje predikcije. Ako jedan izlaz ima veća odstupanja, model taj izlaz predviđa slabije.
+
+### Overfitting?
+
+Zbog vrlo malog broja uzoraka, Linnerud je posebno sklon overfittingu ako se koristi složen model. Ako trening pogreška pada, a validacijska/testna ostaje visoka, model se vjerojatno prenaučio.
+
+## 7. Breast Cancer Wisconsin
+
+**Tip:** binarna klasifikacija  
+**Podaci:** 569 uzoraka, 30 značajki  
+**Izlaz:** malignant/benign  
+**NN:** sigmoid + binary_crossentropy
+
+### Ulazne i izlazne veličine?
+
+Ulazne veličine su 30 numeričkih značajki dobivenih analizom slike tkiva dojke, primjerice radius, texture, perimeter, area i smoothness. Izlazna veličina je dijagnoza: malignant ili benign.
+
+### Zašto binarna klasifikacija?
+
+Radi se o binarnoj klasifikaciji jer izlaz ima dvije moguće klase: malignant i benign. Model predviđa kategoriju, a ne kontinuiranu vrijednost.
+
+### Koji algoritmi su prikladni?
+
+Prikladni su binarna logistička regresija, KNN, SVM i neuronska mreža. Linearna regresija nije prikladna jer nije klasifikacijski algoritam. Višeklasna logistička regresija nije potrebna jer postoje samo dvije klase. K-means nije najbolji izbor jer je nenadzirani algoritam.
+
+### Treba li skalirati podatke?
+
+Da. Značajke imaju različite raspone vrijednosti, pa je StandardScaler prikladan. Skaliranje je važno za SVM, KNN, logističku regresiju i neuronsku mrežu.
+
+### Korelacijska matrica?
+
+Korelacijska matrica pokazuje povezanost između 30 značajki. Ako su neke značajke jako korelirane, nose sličnu informaciju, primjerice radius, perimeter i area često mogu biti povezani.
+
+### Granica odluke?
+
+Granica odluke pokazuje kako model odvaja dvije klase. Ako su pogrešno klasificirani primjeri uglavnom blizu granice, klase su u tom području teže razdvojive. Ako se pogreške javljaju daleko od granice, model slabije odvaja klase.
+
+### Accuracy, precision i recall?
+
+Accuracy pokazuje ukupnu točnost. Precision pokazuje koliko su pozitivne predikcije stvarno pozitivne. Recall pokazuje koliko je stvarnih pozitivnih slučajeva model prepoznao. U medicinskom kontekstu recall je posebno važan ako je pozitivna klasa maligni uzorak jer ne želimo propustiti maligne slučajeve.
+
+### Matrica zabune?
+
+Matrica zabune prikazuje točno i pogrešno klasificirane maligne i benigne uzorke. Posebno treba paziti na lažno negativne slučajeve, ako model maligni uzorak proglasi benignim.
+
+### Priprema za neuronsku mrežu?
+
+Podaci se podijele na X i y, napravi se train/test split, X se standardizira, a mreža ima jedan izlazni neuron sa sigmoid aktivacijom. Koristi se binary_crossentropy jer postoje dvije klase.
+
+### TensorBoard i overfitting?
+
+Prate se loss i accuracy. Ako training accuracy raste, a validation accuracy pada ili stagnira uz rast validation loss-a, pojavljuje se overfitting. Ako su krivulje treninga i validacije slične, nema izražene prenaučenosti.
+
+## 8. Fashion MNIST
+
+**Tip:** višeklasna klasifikacija slika  
+**Podaci:** 60 000 train + 10 000 test, 28x28 grayscale  
+**Izlaz:** 10 klasa odjeće  
+**CNN:** softmax + categorical_crossentropy
+
+### Ulazne i izlazne veličine?
+
+Ulazne veličine su slike odjevnih predmeta dimenzija 28x28 piksela. Izlazna veličina je jedna od 10 klasa: T-shirt/top, Trouser, Pullover, Dress, Coat, Sandal, Shirt, Sneaker, Bag i Ankle boot.
+
+### Zašto višeklasna klasifikacija?
+
+Radi se o višeklasnoj klasifikaciji jer model svaku sliku treba svrstati u jednu od 10 mogućih klasa.
+
+### Kako se podaci pripremaju?
+
+Pikseli se normaliziraju dijeljenjem s 255 kako bi bili u rasponu 0-1. Za CNN se slike preoblikuju u oblik 28x28x1 jer imaju jedan grayscale kanal. Ako se koristi categorical_crossentropy, oznake se pretvaraju u one-hot oblik.
+
+### Koji algoritmi su prikladni?
+
+CNN je najprikladniji jer se radi o slikama i konvolucijski slojevi uče prostorne obrasce. Mogu se koristiti i SVM, KNN ili višeklasna logistička regresija, ali za njih se slike obično spljošte u vektore od 784 vrijednosti.
+
+### Zašto SVM koristi 1D vektor od 784 elemenata?
+
+SVM očekuje tablični vektorski oblik podataka, pa se svaka slika 28x28 pretvara u vektor od 784 piksela. CNN ne treba takvo spljoštavanje na početku jer radi s prostornom strukturom slike.
+
+### Kakav je CNN izlazni sloj?
+
+Izlazni sloj ima 10 neurona i softmax aktivaciju jer postoji 10 mogućih klasa. Softmax vraća vjerojatnosti pripadnosti svakoj klasi.
+
+### Koji loss koristiti?
+
+Ako su oznake one-hot kodirane, koristi se categorical_crossentropy. Ako su oznake cijeli brojevi 0-9, koristi se sparse_categorical_crossentropy.
+
+### Kako interpretirati matricu zabune?
+
+Matrica zabune pokazuje koje klase odjeće model točno prepoznaje i koje zamjenjuje. Pogreške su vjerojatnije između vizualno sličnih klasa, primjerice Shirt, T-shirt/top, Pullover i Coat.
+
+### Kako analizirati TensorBoard?
+
+Prate se loss i accuracy na trening i validacijskom skupu. Dobar tijek učenja znači pad loss-a i rast accuracyja. Overfitting se vidi ako training accuracy raste, a validation accuracy stagnira ili pada, odnosno validation loss raste.
+
+### Gdje dodati Dropout?
+
+Dropout se može dodati nakon MaxPooling blokova ili nakon Dense sloja prije izlaznog sloja. Posebno je koristan nakon Flatten/Dense dijela jer taj dio mreže često ima puno parametara i može se prenaučiti.
+
+## 9. Iris
+
+**Tip:** višeklasna klasifikacija  
+**Podaci:** 150 uzoraka, 4 značajke  
+**Izlaz:** Setosa, Versicolour, Virginica  
+**Zamka:** Setosa je obično najlakše odvojiva
+
+### Ulazne i izlazne veličine?
+
+Ulazne veličine su sepal length, sepal width, petal length i petal width. Izlazna veličina je vrsta irisa: Setosa, Versicolour ili Virginica.
+
+### Zašto višeklasna klasifikacija?
+
+Radi se o višeklasnoj klasifikaciji jer postoje tri moguće klase cvijeta. Model predviđa klasu, a ne brojčanu kontinuiranu vrijednost.
+
+### Koji algoritmi su prikladni?
+
+Prikladni su KNN, SVM i višeklasna logistička regresija. K-means se može koristiti za istraživanje grupiranja, ali nije glavni izbor za nadziranu klasifikaciju kada imamo oznake klasa.
+
+### Treba li skalirati podatke?
+
+Preporučljivo je skalirati podatke, osobito za KNN i SVM, jer su osjetljivi na udaljenosti i skale značajki.
+
+### Kako analizirati korelacije i grafove?
+
+Petal length i petal width često dobro razdvajaju klase, osobito Setosu. Ako se klase jasno odvajaju na scatter grafu, modelu je lakše pronaći granicu odluke.
+
+### Kako interpretirati matricu zabune?
+
+Matrica zabune pokazuje koliko je uzoraka svake vrste irisa točno klasificirano. Najčešće je Setosa lakše razdvojiva, dok se Versicolour i Virginica mogu više miješati.
+
+### Koji loss za neuronsku mrežu?
+
+Za tri klase koristi se izlazni sloj s 3 neurona i softmax aktivacijom. Loss je categorical_crossentropy ili sparse_categorical_crossentropy, ovisno o obliku oznaka.
+
+## 10. Digits
+
+**Tip:** višeklasna klasifikacija slika  
+**Podaci:** 1797 uzoraka, 8x8 = 64 značajke  
+**Izlaz:** znamenke 0-9  
+**Skaliranje:** /16 ili StandardScaler
+
+### Ulazne i izlazne veličine?
+
+Ulazni podaci su slike rukom pisanih znamenki veličine 8x8, odnosno 64 vrijednosti piksela. Izlazna veličina je znamenka od 0 do 9.
+
+### Zašto višeklasna klasifikacija?
+
+Radi se o višeklasnoj klasifikaciji jer postoji 10 mogućih klasa - znamenke 0, 1, 2, ..., 9.
+
+### Kako pripremiti podatke?
+
+Ako se koristi SVM, KNN ili logistička regresija, slike se koriste kao vektori od 64 značajke. Pikseli su u rasponu 0-16 pa se mogu normalizirati dijeljenjem sa 16 ili standardizirati.
+
+### Koji algoritmi su prikladni?
+
+Prikladni su SVM, KNN, višeklasna logistička regresija i neuronska mreža. CNN se također može koristiti jer se radi o slikama, iako su slike male.
+
+### Kako interpretirati matricu zabune?
+
+Matrica zabune pokazuje koje znamenke model najčešće zamjenjuje. Pogreške se mogu pojaviti između vizualno sličnih znamenki, primjerice 3 i 8 ili 1 i 7.
+
+### Koji izlazni sloj za NN?
+
+Izlazni sloj ima 10 neurona i softmax aktivaciju jer postoji 10 klasa znamenki.
+
+### TensorBoard/overfitting?
+
+Prate se loss i accuracy. Ako training accuracy raste znatno više od validation accuracyja i validation loss raste, model se prenaučio.
+
+## 11. Wine
+
+**Tip:** višeklasna klasifikacija  
+**Podaci:** 178 uzoraka, 13 kemijskih značajki  
+**Izlaz:** 3 klase vina  
+**Skaliranje:** StandardScaler je važan
+
+### Ulazne i izlazne veličine?
+
+Ulazni podaci su 13 kemijskih značajki vina, primjerice alcohol, malic acid, ash, magnesium, flavanoids, color intensity, hue i proline. Izlazna veličina je jedna od tri klase vina.
+
+### Zašto višeklasna klasifikacija?
+
+Radi se o višeklasnoj klasifikaciji jer model predviđa jednu od tri klase vina.
+
+### Koji algoritmi su prikladni?
+
+Prikladni su SVM, KNN, višeklasna logistička regresija i neuronska mreža. Linearna regresija nije prikladna jer se predviđa klasa, a ne kontinuirana vrijednost. K-means se može koristiti za grupiranje, ali nije najbolji izbor ako već imamo poznate oznake klasa.
+
+### Treba li skalirati podatke?
+
+Da. Kemijske značajke imaju različite raspone vrijednosti, primjerice proline može imati puno veće vrijednosti od hue. StandardScaler je prikladan, posebno za KNN, SVM i logističku regresiju.
+
+### Kako komentirati korelacije/grafove?
+
+Korelacije pokazuju koje kemijske značajke nose slične informacije. Scatter grafovi mogu pokazati koje značajke najbolje razdvajaju klase vina.
+
+### Kako interpretirati matricu zabune?
+
+Matrica zabune pokazuje koliko je uzoraka svake klase vina točno klasificirano i koje klase model zamjenjuje.
+
+### Koji izlazni sloj i loss za NN?
+
+Izlazni sloj ima 3 neurona i softmax aktivaciju. Koristi se categorical_crossentropy ili sparse_categorical_crossentropy, ovisno o obliku oznaka.
+
+## 12. Brze šablone za spašavanje
+
+### Ako vidiš RMSE, MAE, MAPE i R2
+
+To je regresija. Govori o brojčanoj izlaznoj vrijednosti, grafu y = x, loss = mse, metrika = mae i jednom izlaznom neuronu, osim Linneruda koji ima tri izlazna neurona.
+
+### Ako vidiš accuracy, precision, recall i matricu zabune
+
+To je klasifikacija. Govori o klasama, točnim i pogrešnim klasifikacijama, granici odluke, sigmoid za dvije klase ili softmax za više klasa.
+
+### Ako vidiš slike 28x28 ili 8x8
+
+Radi se o slikovnim podacima. Za CNN se čuva oblik slike i dodaje kanal, npr. 28x28x1. Za SVM, KNN ili logističku regresiju slika se često spljošti u 1D vektor.
+
+### Ako pitaju je li “granica odluke” kod regresije
+
+Kod regresije nema granice odluke. Umjesto toga promatra se pravac idealne ovisnosti y = x između stvarnih i predviđenih vrijednosti. Granica odluke pripada klasifikacijskim problemima.
+
+## 13. Izvori za provjeru podataka
+
+- Scikit-learn dokumentacija: Toy datasets - Iris, Diabetes, Digits, Linnerud, Wine i Breast Cancer.
+- Scikit-learn dokumentacija: fetch_california_housing - California Housing dataset.
+- Keras dokumentacija: Fashion MNIST dataset.
+- PDF-ovi ispita poslani u chatu: Breast Cancer Wisconsin, Fashion MNIST, Diabetes i California Housing zadaci.
